@@ -14,54 +14,15 @@ Inspired by the architecture of [faster-whisper-server](https://github.com/fedir
 
 ## Requirements
 
-- Python 3.10+
-- CUDA 12.1 (optional, for GPU acceleration)
-- FFmpeg
+- Docker
 
-## Installation
+## Run in Docker
 
-### Local Setup
-
-1. Clone the repository:
-```bash
-git clone https://github.com/lsj5031/glm-asr-docker.git
-cd glm-asr
 ```
-
-2. Create a virtual environment:
-```bash
-python -m venv .venv
-source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-```
-
-3. Install dependencies:
-```bash
-pip install -r requirements.txt
-```
-
-4. Run the server:
-```bash
-python server.py
-```
-
-The API will be available at `http://localhost:8000`
-
-### Docker Setup
-
-#### Using Pre-built Image
-
-Pull the latest image from GitHub Container Registry:
-```bash
-docker pull ghcr.io/lsj5031/glm-asr-docker:latest
-docker run --gpus all -p 8000:8000 -v ~/.cache/huggingface:/root/.cache/huggingface ghcr.io/lsj5031/glm-asr-docker:latest
-```
-
-#### Build Locally
-
-Build and run with Docker:
-```bash
-docker build -t glm-asr .
-docker run --gpus all -p 8000:8000 -v ~/.cache/huggingface:/root/.cache/huggingface glm-asr
+touch .env
+# override env vars in .env, e.g.: PORT=8000
+make build
+make server
 ```
 
 ## Usage
@@ -104,6 +65,11 @@ For a complete speech-to-text experience, you can use these frontend application
 - **[WhisperSqueak](https://github.com/lsj5031/WhisperSqueak)** - A lightweight desktop application for audio transcription
 
 Both frontends are designed to work seamlessly with this GLM-ASR server's OpenAI-compatible API endpoints.
+
+To use it in Spokenly:
+
+![Spokenly iOS app](./img/spokenly.jpeg)
+
 
 ## Model
 
