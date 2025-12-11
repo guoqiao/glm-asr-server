@@ -1,8 +1,8 @@
-# GLM-ASR
+# glm-asr-server
 
-A FastAPI-based speech-to-text service powered by the GLM-ASR-Nano model. Transcribe audio files with ease using this OpenAI-compatible API.
+OpenAI-compatible ASR/speech-to-text API server, powered by GLM-ASR-Nano model.
 
-Inspired by the architecture of [faster-whisper-server](https://github.com/fedirz/faster-whisper-server) by Fedir Zadniprovskyi.
+Inspired by [faster-whisper-server](https://github.com/fedirz/faster-whisper-server).
 
 ## Features
 
@@ -57,7 +57,7 @@ Returns:
 
 Interactive API documentation is available at `http://localhost:8000/docs` when the server is running.
 
-## Frontend Options
+## Clients
 
 For a complete speech-to-text experience, you can use these frontend applications that are compatible with this GLM-ASR server:
 
