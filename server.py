@@ -259,11 +259,13 @@ def run_inference(batch: dict) -> str:
         transcript_ids, skip_special_tokens=True
     ).strip()
 
-    logger.info(
-        f"[TRANSCRIPTION RESULT] '{transcript[:100]}'"
-        f"{'...' if len(transcript) > 100 else ''}"
-    )
+    # logger.info(
+    #     f"[TRANSCRIPTION RESULT] '{transcript[:100]}'"
+    #     f"{'...' if len(transcript) > 100 else ''}"
+    # )
+    print('\n\n', transcript, '\n\n')
     return transcript
+
 
 
 @app.post("/v1/audio/transcriptions", response_model=TranscriptionResponse)
