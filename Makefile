@@ -63,8 +63,21 @@ server:
 		-e PORT=${PORT} \
 		-p ${PORT}:${PORT} \
 		--entrypoint=/opt/conda/bin/python \
+		--name=${app} \
 		${app}:latest \
 		server.py
+
+run: server
+
+
+tail:
+	docker logs -f ${app}
+
+
+test:
+	curl -s -X POST "http://localhost:8000/v1/audio/transcriptions" \
+	-H "Content-Type: multipart/form-data" \
+	-F "file=@data/audio.mp3" | jq
 
 pre-commit-setup:
 	pip install -U pre-commit ruff
