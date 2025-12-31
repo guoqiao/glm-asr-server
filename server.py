@@ -38,11 +38,18 @@ async def list_models() -> dict:
 @app.post("/v1/audio/transcriptions")
 async def transcribe(
     file: UploadFile = File(...),
+    model: Annotated[str, Form()] = "glm-nano-2512",  # only model, ommited
     language: Annotated[str, Form()] = None,
     response_format: Annotated[str, Form()] = "json",  # {"text": "<transcript>"}
 ):
     """Transcribe audio file to text."""
     logger.info(f"transcribing file {file.filename} content_type {file.content_type} -> language {language} format {response_format}")
+
+    formats = ["json", "text"]
+
+    if response_format not in formats:
+        raise HTTPException(400, f"response_format {response_format} not in {formats}")
+
     # load can accept a file-like object
     # file.file: SpooledTemporaryFile
     audio_ndarray, sr = librosa.load(file.file, sr=16000)
@@ -50,10 +57,8 @@ async def transcribe(
     text = transcriber.transcribe(audio_ndarray, lang=language)
     if response_format == "json":
         return {"text": text}
-    elif response_format == "text":
+    if response_format == "text":
         return text
-    else:
-        raise HTTPException(400, "Invalid response format")
 
 
 if __name__ == "__main__":
