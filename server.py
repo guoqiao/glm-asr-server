@@ -9,17 +9,14 @@ from loguru import logger
 import torch
 import librosa
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException
-from pydantic import BaseModel
 
-from inference import Transcriber
-
+# from transcribers import GLMASRTranscriber as Transcriber
+from transcribers import WhisperTranscriber as Transcriber
 
 transcriber = Transcriber()
 
-
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> None:
-    transcriber.load()
     yield
     torch.cuda.empty_cache()
     logger.info("Model unloaded")
@@ -40,24 +37,25 @@ async def transcribe(
     file: UploadFile = File(...),
     model: Annotated[str, Form()] = "glm-nano-2512",  # only model, ommited
     language: Annotated[str, Form()] = None,
-    response_format: Annotated[str, Form()] = "json",  # {"text": "<transcript>"}
+    response_format: Annotated[str, Form()] = "text",  # {"text": "<transcript>"}
 ):
     """Transcribe audio file to text."""
-    logger.info(f"transcribing file {file.filename} content_type {file.content_type} -> language {language} format {response_format}")
+    logger.info(f"{transcriber.__class__.__name__} transcribing {file.filename} -> language {language} format {response_format}")
 
-    formats = ["json", "text"]
-
-    if response_format not in formats:
-        raise HTTPException(400, f"response_format {response_format} not in {formats}")
+    try:
+        transcriber.clean_format(response_format)
+    except ValueError as e:
+        raise HTTPException(400, str(e))
 
     # load can accept a file-like object
     # file.file: SpooledTemporaryFile
     audio_ndarray, sr = librosa.load(file.file, sr=16000)
     # path/ndarray/torch.Tensor
-    text = transcriber.transcribe(audio_ndarray, lang=language)
+    text = transcriber.transcribe(audio_ndarray, language=language, format=response_format)
+    logger.info(f"transcript:\n{text}\n")
     if response_format == "json":
         return {"text": text}
-    if response_format == "text":
+    if response_format in ["text", "txt", "srt", "vtt"]:
         return text
 
 

@@ -9,3 +9,5 @@ python-multipart>=0.0.6
 torchaudio>=2.0.0
 pydub>=0.25.1
 loguru
+
+openai-whisper
