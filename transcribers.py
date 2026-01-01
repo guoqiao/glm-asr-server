@@ -20,7 +20,7 @@ def sec2ts(t: float|str) -> str:
 
 
 class Transcriber:
-    supported_formats = ["text"]
+    supported_formats = ["text", "txt"]
 
     def load(self):
         # for time consuming operations, e.g. loading model, downloading, etc.
@@ -90,7 +90,7 @@ class AssemblyAITranscriber(Transcriber):
 
 class OpenAITranscriber(Transcriber):
 
-    supported_formats = ["text", "srt"]
+    supported_formats = ["txt", "text", "srt"]
 
     def __init__(self, api_key: str = None, base_url: str = None):
         from openai import OpenAI
@@ -102,6 +102,8 @@ class OpenAITranscriber(Transcriber):
         # user can request these formats for this transcriber
 
     def call_api(self, file: str, language: str = None, format: str = "text"):
+        if format == "txt":
+            format = "text"
         logger.info(f"calling {self.__class__.__name__} with model {self.model}, format {format}, language {language}")
         ret = self.client.audio.transcriptions.create(
             file=open(file, "rb"),
@@ -109,7 +111,7 @@ class OpenAITranscriber(Transcriber):
             language=language,
             response_format=format,
         )
-        logger.info(f"openai api transcribe result: {type(ret)}")
+        logger.info(f"openai api transcribe ret type: {type(ret)}")
         return ret
 
     def _transcribe(self, file: str, language: str = None, format: str = "text") -> str:
@@ -159,7 +161,6 @@ class GLMASRTranscriber(Transcriber):
             **inputs,
             do_sample=False,
             max_new_tokens=self.max_new_tokens,
-            language=language or None,
         )
         decoded_outputs = self.processor.batch_decode(outputs[:, inputs.input_ids.shape[1] :], skip_special_tokens=True)
         t = time.time() - t0
@@ -175,8 +176,9 @@ class WhisperTranscriber(Transcriber):
         import whisper
         self.model = whisper.load_model(self.model_size)
 
-    def _transcribe(self, file: str, language: str = None, format: str = "text") -> str:
-        result = self.model.transcribe(file)
+    def _transcribe(self, audio, language: str = None, format: str = "text") -> str:
+        # audio: Union[str, np.ndarray, torch.Tensor]
+        result = self.model.transcribe(audio)
         if format in ["text", "txt"]:
             return result.get("text", "")
 
