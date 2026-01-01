@@ -10,14 +10,13 @@ import torch
 import librosa
 from fastapi import FastAPI, Form, File, UploadFile, HTTPException
 
-# from transcribers import GLMASRTranscriber as Transcriber
-# from transcribers import WhisperTranscriber as Transcriber
-from transcribers import FasterWhisperTranscriber as Transcriber
+from transcribers import get_transcriber
 
-transcriber = Transcriber()
+transcriber = get_transcriber()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> None:
+    transcriber.load()
     yield
     torch.cuda.empty_cache()
     logger.info("Model unloaded")
