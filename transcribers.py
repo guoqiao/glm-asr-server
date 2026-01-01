@@ -8,20 +8,23 @@ from pathlib import Path
 
 from loguru import logger
 
-from transformers import AutoModelForSeq2SeqLM, AutoProcessor
 
-
-def sec2ts(t: float) -> str:
-    t = float(t)
-    s = int(t)
-    ms = int((t - s) * 1000)
-    h, s = divmod(s, 3600)
+def sec2ts(t: float|str) -> str:
+    # 65.234 -> 00:01:05.234
+    f = float(t)
+    n = int(t)
+    ms = int((f - n) * 1000)  # 0.234 -> 234
+    h, s = divmod(n, 3600)
     m, s = divmod(s, 60)
     return f"{h:02d}:{m:02d}:{s:02d}.{ms:03d}"
 
 
 class Transcriber:
     supported_formats = ["text"]
+
+    def load(self):
+        # for time consuming operations, e.g. loading model, downloading, etc.
+        pass
 
     def clean_file(self, file: str) -> str:
         # check file data type, ext, etc.
@@ -137,7 +140,8 @@ class GLMASRTranscriber(Transcriber):
     model_id = "zai-org/GLM-ASR-Nano-2512"
     max_new_tokens = 500
 
-    def __init__(self):
+    def load(self):
+        from transformers import AutoModelForSeq2SeqLM, AutoProcessor
         logger.info(f"Loading model {self.model_id}...")
         t0 = time.time()
         self.processor = AutoProcessor.from_pretrained(self.model_id)
@@ -165,10 +169,9 @@ class GLMASRTranscriber(Transcriber):
 
 class WhisperTranscriber(Transcriber):
     supported_formats = ["json", "text", "srt"]
-
     model_size = os.getenv("WHISPER_MODEL", "turbo")
 
-    def __init__(self):
+    def load(self):
         import whisper
         self.model = whisper.load_model(self.model_size)
 
@@ -195,7 +198,7 @@ class WhisperTranscriber(Transcriber):
 
 class WhisperCPUTranscriber(WhisperTranscriber):
 
-    def __init__(self):
+    def load(self):
         from whisper import Whisper
         self.model = Whisper(
             model=os.getenv("WHISPER_MODEL", "small"),
@@ -215,7 +218,7 @@ class FasterWhisperTranscriber(Transcriber):
     best_of = 5
     model_size = os.getenv("FASTER_WHISPER_MODEL_SIZE", "large-v3")
 
-    def __init__(self):
+    def load(self):
         from faster_whisper import WhisperModel, BatchedInferencePipeline
         self.model = WhisperModel(self.model_size, device=self.device, compute_type=self.compute_type)
         self.pipeline = BatchedInferencePipeline(model=self.model)
@@ -259,28 +262,30 @@ class FasterWhisperCPUTranscriber(FasterWhisperTranscriber):
     model_size = os.getenv("FASTER_WHISPER_MODEL_SIZE_CPU", "small")
 
 
-def get_transcriber(engine: str = "") -> Transcriber:
-    engine = engine or os.getenv("TRANSCRIBER_ENGINE", "lemonfoxai")
-    if engine in ["lemonfoxai", "lemonfox", "lemonfox-ai"]:
+def get_transcriber(backend: str = "") -> Transcriber:
+    backend = backend or os.getenv("TRANSCRIBE_BACKEND", "lemonfoxai")
+    if backend in ["lemonfoxai", "lemonfox", "lemonfox-ai"]:
         return LemonfoxAITranscriber()
-    if engine in ["assembly", "assemblyai", "aai"]:
+    if backend in ["assembly", "assemblyai", "aai"]:
         return AssemblyAITranscriber()
-    if engine in ["glm", "glmasr", "glmasr-server", "glm-asr", "glm-asr-server"]:
+    if backend in ["glm", "glmasr", "glmasr-server", "glm-asr", "glm-asr-server"]:
         return GLMASRTranscriber()
-    elif engine == "openai":
+    elif backend == "openai":
         return OpenAITranscriber()
-    elif engine in ["whisper", "whisper-gpu"]:
+    elif backend in ["whisper", "whisper-gpu"]:
         return WhisperTranscriber()
-    elif engine in ["whisper-cpu"]:
+    elif backend in ["whisper-cpu"]:
         return WhisperCPUTranscriber()
-    elif engine in ["faster-whisper", "faster-whisper-gpu"]:
+    elif backend in ["faster-whisper", "faster-whisper-gpu"]:
         return FasterWhisperTranscriber()
-    elif engine in ["faster-whisper-cpu"]:
+    elif backend in ["faster-whisper-cpu"]:
         return FasterWhisperCPUTranscriber()
 
 
-def transcribe(file: str, language: str = None, format: str = "text", engine: str = "lemonfoxai") -> str:
-    return get_transcriber(engine).transcribe(file, language=language, format=format)
+def transcribe(file: str, language: str = None, format: str = "text", backend: str = "lemonfoxai") -> str:
+    transcriber = get_transcriber(backend)
+    transcriber.load()
+    return transcriber.transcribe(file, language=language, format=format)
 
 
 def cli():
@@ -290,13 +295,13 @@ def cli():
         description="Transcribe audio file to text",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
-    parser.add_argument("file", type=str)
-    parser.add_argument("-l", "--language", type=str, help="language code, e.g. en, zh, None for auto-detect")
-    parser.add_argument("-f", "--format", type=str, help="output format, e.g. text, srt, vtt")
-    parser.add_argument("-e", "--engine", type=str, default="lemonfoxai")
-    parser.add_argument("-o", "--output", type=str, default="")
+    parser.add_argument("file", help="audio file path")
+    parser.add_argument("-l", "--language", help="language code, None|zh|en|etc.")
+    parser.add_argument("-f", "--format", default="text", help="output format, text|srt|vtt")
+    parser.add_argument("-b", "--backend", help="transcribe backend name")
+    parser.add_argument("-o", "--output", help="output file path")
     args = parser.parse_args()
-    text = transcribe(args.file, language=args.language, engine=args.engine)
+    text = transcribe(args.file, language=args.language, format=args.format, backend=args.backend)
     if args.output:
         output_path = Path(args.output)
         output_path.parent.mkdir(parents=True, exist_ok=True)
